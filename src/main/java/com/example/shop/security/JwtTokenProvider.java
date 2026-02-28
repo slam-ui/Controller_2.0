@@ -2,45 +2,49 @@ package com.example.shop.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
-    // В реальности этот ключ должен быть сложным и лежать в переменных окружения!
-    private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private final Key key;
 
-    // Время жизни токенов (в миллисекундах)
-    private final long ACCESS_TOKEN_VALIDITY = 15 * 60 * 1000; // 15 минут
-    private final long REFRESH_TOKEN_VALIDITY = 30L * 24 * 60 * 60 * 1000; // 30 дней
+    // Ключ берётся из конфигурации — не пересоздаётся при каждом старте
+    public JwtTokenProvider(@Value("${jwt.secret}") String secret) {
+        byte[] keyBytes = Base64.getDecoder().decode(secret);
+        this.key = Keys.hmacShaKeyFor(keyBytes);
+    }
 
-    // Генерация Access Token (короткий)
+    private static final long ACCESS_TOKEN_VALIDITY  = 15 * 60 * 1000L;          // 15 минут
+    private static final long REFRESH_TOKEN_VALIDITY = 30L * 24 * 60 * 60 * 1000; // 30 дней
+
     public String createAccessToken(String username, String role) {
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
+                .claim("type", "access")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_VALIDITY))
                 .signWith(key)
                 .compact();
     }
 
-    // Генерация Refresh Token (длинный)
     public String createRefreshToken(String username) {
         return Jwts.builder()
                 .setSubject(username)
+                .claim("type", "refresh")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_VALIDITY))
                 .signWith(key)
                 .compact();
     }
 
-    // Проверка токена
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -50,13 +54,19 @@ public class JwtTokenProvider {
         }
     }
 
-    // Получение имени пользователя из токена
     public String getUsername(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    public String getRole(String token) {
+        return (String) getClaims(token).get("role");
+    }
+
+    private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+                .getBody();
     }
 }

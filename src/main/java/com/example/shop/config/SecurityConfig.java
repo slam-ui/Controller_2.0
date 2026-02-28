@@ -29,15 +29,18 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                // Включаем Stateless сессии (сервер не запоминает клиента, клиент сам шлет токен)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Вход и Регистрация открыты
+                        // Аутентификация открыта для всех
+                        .requestMatchers("/api/auth/**").permitAll()
+                        // Просмотр товаров и категорий открыт для всех
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                        // Управление пользователями — только администраторы
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        // Всё остальное — только аутентифицированные пользователи
                         .anyRequest().authenticated()
                 )
-                // Добавляем наш фильтр ПЕРЕД стандартным фильтром логина
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

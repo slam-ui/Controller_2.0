@@ -1,25 +1,37 @@
 package com.example.shop.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
+import lombok.*;
+import java.time.Instant;
+import java.util.UUID;
 
 @Entity
-@Data
-@NoArgsConstructor
 @Table(name = "user_sessions")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UserSession {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @Column(unique = true, nullable = false)
-    private String refreshToken;
+    private String userEmail;       // идентификатор пользователя
 
-    @Column(nullable = false)
-    private LocalDateTime expiresAt;
+    private String deviceId;        // идентификатор устройства / сессии
+
+    @Column(length = 512)
+    private String accessToken;     // JWT access-токен
+
+    @Column(length = 512)
+    private String refreshToken;    // JWT refresh-токен
+
+    private Instant accessTokenExpiry;   // время истечения access-токена
+
+    private Instant refreshTokenExpiry;  // время истечения refresh-токена
+
+    @Enumerated(EnumType.STRING)
+    private SessionStatus status;   // ACTIVE, USED, REVOKED
 }
