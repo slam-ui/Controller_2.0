@@ -1,6 +1,6 @@
 package com.example.shop.controller;
 
-import com.example.shop.dto.Ticket;
+import com.example.shop.dto.TicketResponse;
 import com.example.shop.entity.License;
 import com.example.shop.repository.UserRepository;
 import com.example.shop.service.LicenseService;
@@ -39,42 +39,41 @@ public class LicenseController {
 
     // 2. Активация лицензии
     @PostMapping("/activate")
-    public ResponseEntity<Ticket> activate(@RequestBody ActivateRequest request,
-                                           @AuthenticationPrincipal UserDetails userDetails) {
-        Ticket ticket = licenseService.activateLicense(
+    public ResponseEntity<TicketResponse> activate(@RequestBody ActivateRequest request,
+                                                   @AuthenticationPrincipal UserDetails userDetails) {
+        TicketResponse response = licenseService.activateLicense(
                 request.getActivationKey(),
                 request.getDeviceMac(),
                 request.getDeviceName(),
                 getUserId(userDetails)
         );
-        return ResponseEntity.ok(ticket);
+        return ResponseEntity.ok(response);
     }
 
     // 3. Продление лицензии
     @PostMapping("/renew")
-    public ResponseEntity<Ticket> renew(@RequestBody RenewRequest request,
-                                        @AuthenticationPrincipal UserDetails userDetails) {
-        Ticket ticket = licenseService.renewLicense(
+    public ResponseEntity<TicketResponse> renew(@RequestBody RenewRequest request,
+                                                @AuthenticationPrincipal UserDetails userDetails) {
+        TicketResponse response = licenseService.renewLicense(
                 request.getActivationKey(),
                 getUserId(userDetails)
         );
-        return ResponseEntity.ok(ticket);
+        return ResponseEntity.ok(response);
     }
 
     // 4. Проверка лицензии
     @GetMapping("/check")
-    public ResponseEntity<Ticket> check(@RequestParam String deviceMac,
-                                        @RequestParam Long productId,
-                                        @AuthenticationPrincipal UserDetails userDetails) {
-        Ticket ticket = licenseService.checkLicense(
+    public ResponseEntity<TicketResponse> check(@RequestParam String deviceMac,
+                                                @RequestParam Long productId,
+                                                @AuthenticationPrincipal UserDetails userDetails) {
+        TicketResponse response = licenseService.checkLicense(
                 deviceMac,
                 getUserId(userDetails),
                 productId
         );
-        return ResponseEntity.ok(ticket);
+        return ResponseEntity.ok(response);
     }
 
-    // Получаем реальный ID пользователя из БД по username из JWT
     private Long getUserId(UserDetails userDetails) {
         return userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))

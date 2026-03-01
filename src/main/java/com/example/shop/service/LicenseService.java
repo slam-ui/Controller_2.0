@@ -1,6 +1,7 @@
 package com.example.shop.service;
 
 import com.example.shop.dto.Ticket;
+import com.example.shop.dto.TicketResponse;
 import com.example.shop.entity.*;
 import com.example.shop.repository.*;
 import com.example.shop.signature.SigningService;
@@ -61,13 +62,11 @@ public class LicenseService {
     // 2. АКТИВАЦИЯ ЛИЦЕНЗИИ
     // =====================================================================
     @Transactional
-    public Ticket activateLicense(String activationKey, String deviceMac,
-                                  String deviceName, Long userId) {
-        // Найти лицензию по коду
+    public TicketResponse activateLicense(String activationKey, String deviceMac,
+                                          String deviceName, Long userId) {
         License license = licenseRepository.findByCode(activationKey)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "License not found"));
 
-        // Если лицензия уже активирована другим пользователем — 403
         if (license.getFirstActivationDate() != null
                 && !license.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "License owned by another user");
@@ -76,7 +75,6 @@ public class LicenseService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        // Найти или создать устройство
         Device device = deviceRepository.findByMacAddress(deviceMac)
                 .orElseGet(() -> {
                     Device d = new Device();
@@ -87,26 +85,20 @@ public class LicenseService {
                 });
 
         if (license.getFirstActivationDate() == null) {
-            // === ПЕРВАЯ АКТИВАЦИЯ ===
             license.setUser(user);
             license.setFirstActivationDate(LocalDateTime.now());
             license.setEndingDate(LocalDateTime.now()
                     .plusDays(license.getType().getDefaultDuration()));
             licenseRepository.save(license);
 
-            // Создать запись device_license
             createDeviceLicense(license, device);
-
             saveHistory(license, userId, "ACTIVATED", "Первая активация на устройстве " + deviceMac);
         } else {
-            // === ПОВТОРНАЯ АКТИВАЦИЯ ===
-            // Проверить лимит устройств
             long deviceCount = deviceLicenseRepository.countByLicense(license);
             if (deviceCount >= license.getDeviceCount()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Device limit reached");
             }
 
-            // Проверить что это устройство ещё не привязано
             if (!deviceLicenseRepository.existsByLicenseAndDevice(license, device)) {
                 createDeviceLicense(license, device);
             }
@@ -114,18 +106,17 @@ public class LicenseService {
             saveHistory(license, userId, "ACTIVATED", "Активация на устройстве " + deviceMac);
         }
 
-        return buildTicket(license, userId, deviceMac);
+        return buildTicketResponse(license, userId, deviceMac);
     }
 
     // =====================================================================
     // 3. ПРОДЛЕНИЕ ЛИЦЕНЗИИ
     // =====================================================================
     @Transactional
-    public Ticket renewLicense(String activationKey, Long userId) {
+    public TicketResponse renewLicense(String activationKey, Long userId) {
         License license = licenseRepository.findByCode(activationKey)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "License not found"));
 
-        // Условие: не активирована ИЛИ истекает в течение 7 дней
         boolean notActivated = license.getEndingDate() == null;
         boolean expiresSoon = license.getEndingDate() != null
                 && license.getEndingDate().isBefore(LocalDateTime.now().plusDays(7));
@@ -143,23 +134,21 @@ public class LicenseService {
 
         saveHistory(license, userId, "RENEWED", "Продлена до " + license.getEndingDate());
 
-        return buildTicket(license, userId, null);
+        return buildTicketResponse(license, userId, null);
     }
 
     // =====================================================================
-    // 4. ПРОВЕРКА ЛИЦЕНЗИИ (по устройству, пользователю и продукту)
+    // 4. ПРОВЕРКА ЛИЦЕНЗИИ
     // =====================================================================
-    public Ticket checkLicense(String deviceMac, Long userId, Long productId) {
-        // Проверяем устройство
+    public TicketResponse checkLicense(String deviceMac, Long userId, Long productId) {
         deviceRepository.findByMacAddress(deviceMac)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
 
-        // Ищем активную лицензию по устройству + пользователю + продукту
         License license = licenseRepository
                 .findActiveByDeviceUserAndProduct(deviceMac, userId, productId, LocalDateTime.now())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active license not found"));
 
-        return buildTicket(license, userId, deviceMac);
+        return buildTicketResponse(license, userId, deviceMac);
     }
 
     // =====================================================================
@@ -174,7 +163,7 @@ public class LicenseService {
         deviceLicenseRepository.save(dl);
     }
 
-    private Ticket buildTicket(License license, Long userId, String deviceMac) {
+    private TicketResponse buildTicketResponse(License license, Long userId, String deviceMac) {
         Ticket ticket = new Ticket();
         ticket.setServerDate(LocalDateTime.now());
         ticket.setTicketLifetime(3600L);
@@ -184,18 +173,8 @@ public class LicenseService {
         ticket.setDeviceId(deviceMac);
         ticket.setBlocked(license.isBlocked());
 
-        // Копия без signature для подписи
-        Ticket toSign = new Ticket();
-        toSign.setServerDate(ticket.getServerDate());
-        toSign.setTicketLifetime(ticket.getTicketLifetime());
-        toSign.setActivationDate(ticket.getActivationDate());
-        toSign.setExpirationDate(ticket.getExpirationDate());
-        toSign.setUserId(ticket.getUserId());
-        toSign.setDeviceId(ticket.getDeviceId());
-        toSign.setBlocked(ticket.isBlocked());
-
-        ticket.setSignature(signingService.sign(toSign));
-        return ticket;
+        String signature = signingService.sign(ticket);
+        return new TicketResponse(ticket, signature);
     }
 
     private void saveHistory(License license, Long userId, String status, String description) {

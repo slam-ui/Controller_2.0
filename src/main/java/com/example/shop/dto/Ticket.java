@@ -12,5 +12,4 @@ public class Ticket {
     private Long userId;
     private String deviceId;
     private boolean isBlocked;
-    private String signature;
 }
