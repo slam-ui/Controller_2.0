@@ -36,6 +36,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.2</version>
+        </dependency>
+
         <!-- ГЛАВНОЕ: БАЗА ДАННЫХ (JPA / Hibernate) - ЭТОГО НЕ ХВАТАЛО -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
