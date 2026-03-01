@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Certificates & Keystores (не хранить в репозитории) ###
+*.csr
+*.crt
+*.jks
+rootCA*
+intermediateCA*
+server.crt
+server.csr
