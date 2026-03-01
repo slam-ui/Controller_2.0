@@ -16,15 +16,17 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // Ищем пользователя в БД
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        // Превращаем нашего User в Spring Security UserDetails
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())
-                .password(user.getPassword()) // Хэш пароля
-                .roles(user.getRole().name()) // Роль (Spring сам добавит префикс ROLE_)
+                .password(user.getPassword())
+                .roles(user.getRole().name())
+                .accountExpired(user.isAccountExpired())
+                .accountLocked(user.isAccountLocked())
+                .credentialsExpired(user.isCredentialsExpired())
+                .disabled(user.isDisabled())
                 .build();
     }
 }

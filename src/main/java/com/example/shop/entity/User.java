@@ -7,7 +7,9 @@ import lombok.Data;
 @Data
 @Table(name = "users")
 public class User {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false)
@@ -19,5 +21,17 @@ public class User {
     private String email;
 
     @Enumerated(EnumType.STRING)
-    private Role role; // USER или ADMIN
+    private Role role;
+
+    @Column(nullable = false)
+    private boolean isAccountExpired = false;
+
+    @Column(nullable = false)
+    private boolean isAccountLocked = false;
+
+    @Column(nullable = false)
+    private boolean isCredentialsExpired = false;
+
+    @Column(nullable = false)
+    private boolean isDisabled = false;
 }
