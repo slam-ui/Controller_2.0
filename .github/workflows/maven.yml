@@ -35,13 +35,17 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Restore keystore from secret
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > src/main/resources/server.jks
+          echo "Keystore restored: $(ls -lh src/main/resources/server.jks)"
+
       - name: Build and Test with Maven
         env:
           DB_PASSWORD: password
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/shop_db
           SPRING_DATASOURCE_USERNAME: postgres
-          # Фиксированный секрет для CI (Base64 от 32 байт)
           JWT_SECRET: dGVzdC1zZWNyZXQta2V5LWZvci1naXRodWItYWN0aW9ucw==
-          # Тестовый профиль отключает SSL — keystore не нужен
+          SSL_KEYSTORE_PASSWORD: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
           SPRING_PROFILES_ACTIVE: test
         run: mvn -B package --file pom.xml

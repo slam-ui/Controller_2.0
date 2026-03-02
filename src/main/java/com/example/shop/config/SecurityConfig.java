@@ -29,19 +29,16 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Аутентификация открыта для всех
                         .requestMatchers("/api/auth/**").permitAll()
-                        // Просмотр товаров и категорий открыт для всех
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
-                        // Управление пользователями — только администраторы
+                        // Проверка подписи доступна всем — клиент может верифицировать тикет
+                        .requestMatchers("/api/signature/verify").permitAll()
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/license-types/**").permitAll()
                         .requestMatchers("/api/licenses/**").authenticated()
-                        // Всё остальное — только аутентифицированные пользователи
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

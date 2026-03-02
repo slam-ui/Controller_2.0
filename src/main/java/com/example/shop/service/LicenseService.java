@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -144,9 +145,14 @@ public class LicenseService {
         deviceRepository.findByMacAddress(deviceMac)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
 
-        License license = licenseRepository
-                .findActiveByDeviceUserAndProduct(deviceMac, userId, productId, LocalDateTime.now())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active license not found"));
+        List<License> licenses = licenseRepository
+                .findActiveByDeviceUserAndProduct(deviceMac, userId, productId, LocalDateTime.now());
+
+        if (licenses.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active license not found");
+        }
+
+        License license = licenses.get(0);
 
         return buildTicketResponse(license, userId, deviceMac);
     }
